@@ -17,7 +17,7 @@ const int BROADCASTDELAY = 3; //Timeinterval of MQTT-broadcastmessage = BROADCAS
 int broadcastCounter = 0;
 
 /********* MQTT specific ****************************/
-const char* MQTT_DEVICENAME = "Skifabrikken"; 
+const char* MQTT_DEVICENAME = "Skifabrikken";
 const char* MQTT_SERVER = "davies.livsnyter1.no";
 const int MQTT_PORT = 1883;
 
@@ -35,17 +35,11 @@ void setup() {
   Serial.begin(115200);
 
   //setup wifi_connection
-  WiFi.begin(WIFI_SSID);
-  while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(".");
-    delay(2000);
-  }
+  connectWifi();
 
-  Serial.print("Wifi connected : "); Serial.println(WiFi.localIP());
-  //  timeClient.begin();
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
   mqttClient.setCallback(callback);
-  
+
 
   //Setup MQTT-server connection
   while (!mqttClient.connected()) {
@@ -65,19 +59,22 @@ void setup() {
 
 void loop() {
 
-  led = !digitalRead(photoDetector);
-  digitalWrite(LED_BUILTIN, led);
+  while(WiFi.status() == WL_CONNECTED) {
+    led = !digitalRead(photoDetector);
+    digitalWrite(LED_BUILTIN, led);
 
-  if (broadcastCounter > BROADCASTDELAY) {
+    if (broadcastCounter > BROADCASTDELAY) {
 
-    broadCastMQTTmsg(DEVICENAME , getRoomStatus());
-    broadcastCounter = 0;
+      broadCastMQTTmsg(DEVICENAME , getRoomStatus());
+      broadcastCounter = 0;
+    }
+    broadcastCounter++;
+
+    Serial.println(getRoomStatus());
+    mqttClient.loop();
+    delay(1000);
   }
-  broadcastCounter++;
-
-  Serial.println(getRoomStatus());
-  mqttClient.loop();
-  delay(1000);
+  connectWifi();
 
 }
 
@@ -117,7 +114,7 @@ int broadCastMQTTmsg(String topic, String message) {
 void callback(char* topic, byte* payload, unsigned int payloadLength) {
   Serial.print("Message recieved:");
 
-  for (int i = 0; i< payloadLength; i++) {
+  for (int i = 0; i < payloadLength; i++) {
     Serial.print((char)payload[i]);
   }
   Serial.println();
@@ -129,4 +126,15 @@ String getRoomStatus() {
   return a;
 }
 
+void connectWifi() {
+  //setup wifi_connection
+  WiFi.begin(WIFI_SSID);
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(2000);
+  }
+
+  Serial.print("Wifi connected : "); Serial.println(WiFi.localIP());
+  //  timeClient.begin();
+}
 
