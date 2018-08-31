@@ -9,7 +9,7 @@
 
 
 /********* MCU specific variables ****************************/
-String DEVICENAME = "Skifabrikken";
+String DEVICENAME = "Kaffekroken";
 const int photoDetector = D1;
 int led = 0;
 bool roomOccupied;
@@ -17,7 +17,7 @@ const int BROADCASTDELAY = 3; //Timeinterval of MQTT-broadcastmessage = BROADCAS
 int broadcastCounter = 0;
 
 /********* MQTT specific ****************************/
-const char* MQTT_DEVICENAME = "Skifabrikken";
+const char* MQTT_DEVICENAME = DEVICENAME.c_str();
 const char* MQTT_SERVER = "davies.livsnyter1.no";
 const int MQTT_PORT = 1883;
 
@@ -42,35 +42,27 @@ void setup() {
 
 
   //Setup MQTT-server connection
-  while (!mqttClient.connected()) {
-
-    if (mqttClient.connect(MQTT_SERVER)) {
-      Serial.println("MQTT_Server connected");
-    }
-    else {
-      Serial.print("MQTT-client failed to connect with state "); Serial.println(mqttClient.state());
-      delay(200);
-    }
-
-    roomOccupied = (digitalRead(photoDetector)) ? true : false;
-  }
-  mqttClient.subscribe("ballz");
+  mqttConnectBroker();
+  getRoomStatus();
 }
 
 void loop() {
 
-  while(WiFi.status() == WL_CONNECTED) {
+  while (WiFi.status() == WL_CONNECTED) {
     led = !digitalRead(photoDetector);
     digitalWrite(LED_BUILTIN, led);
 
     if (broadcastCounter > BROADCASTDELAY) {
-
+      Serial.println(mqttClient.connected());
+      if (mqttClient.connected()) {
+        mqttConnectBroker();
+      }
       broadCastMQTTmsg(DEVICENAME , getRoomStatus());
       broadcastCounter = 0;
     }
     broadcastCounter++;
 
-    Serial.println(getRoomStatus());
+    Serial.print(MQTT_DEVICENAME); Serial.println(getRoomStatus());
     mqttClient.loop();
     delay(1000);
   }
@@ -99,9 +91,7 @@ int broadCastMQTTmsg(String topic, String message) {
     if (mqttClient.connect(MQTT_DEVICENAME)) {
       Serial.println("Connected");
     } else {
-      Serial.print("Failed with state :"); Serial.println(mqttClient.state());
-      delay(2000);
-      return mqttClient.state();
+      mqttConnectBroker();
     }
   }
   mqttClient.publish(sendTopic, sendMessage);
@@ -122,6 +112,7 @@ void callback(char* topic, byte* payload, unsigned int payloadLength) {
 
 
 String getRoomStatus() {
+
   String a = (roomOccupied) ? "Opptatt" : "Ledig";
   return a;
 }
@@ -136,5 +127,21 @@ void connectWifi() {
 
   Serial.print("Wifi connected : "); Serial.println(WiFi.localIP());
   //  timeClient.begin();
+}
+
+void mqttConnectBroker() {
+  while (!mqttClient.connected()) {
+
+    if (mqttClient.connect(MQTT_SERVER)) {
+      Serial.println("MQTT_Server connected");
+    }
+    else {
+      Serial.print("MQTT-client failed to connect with state "); Serial.println(mqttClient.state());
+      delay(200);
+    }
+
+
+  }
+
 }
 
